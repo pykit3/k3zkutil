@@ -1,0 +1,6 @@
+_extends: gh-config
+
+repository:
+  description: Some helper function to make life easier with zookeeper.
+  homepage: https://blog.openacid.com
+  topics: python, zookeeper
