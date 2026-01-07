@@ -83,10 +83,6 @@ class TestZKLock(unittest.TestCase):
         k3utdocker.start_container(
             zk_test_name,
             zk_test_tag,
-            env={
-                "ZOO_MY_ID": 1,
-                "ZOO_SERVERS": "server.1=0.0.0.0:2888:3888",
-            },
             port_bindings={
                 2181: 21811,
             },
