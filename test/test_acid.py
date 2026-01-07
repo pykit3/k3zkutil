@@ -9,7 +9,7 @@ import k3zkutil
 
 dd = k3ut.dd
 
-zk_tag = "daocloud.io/zookeeper:3.4.10"
+zk_tag = "zookeeper:3.9"
 zk_name = "zk_test"
 
 

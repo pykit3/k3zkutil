@@ -14,7 +14,7 @@ import k3zkutil
 dd = k3ut.dd
 
 zk_test_name = "zk_test"
-zk_test_tag = "daocloud.io/zookeeper:3.4.10"
+zk_test_tag = "zookeeper:3.9"
 zk_test_auth = ("digest", "xp", "123")
 zk_test_acl = (("xp", "123", "cdrw"),)
 

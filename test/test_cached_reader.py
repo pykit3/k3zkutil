@@ -12,7 +12,7 @@ import k3zkutil
 import k3thread
 
 zk_test_name = "zk_test"
-zk_test_tag = "daocloud.io/zookeeper:3.4.10"
+zk_test_tag = "zookeeper:3.9"
 
 
 class TestCachedReader(unittest.TestCase):
