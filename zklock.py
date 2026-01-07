@@ -33,14 +33,10 @@ class ZKLock(object):
     """
     ZKLock implements a zookeeper based distributed lock.
     """
-    def __init__(self, lock_name,
-                 zkconf=None,
-                 zkclient=None,
-                 on_lost=None,
-                 identifier=None,
-                 ephemeral=True,
-                 timeout=10):
 
+    def __init__(
+        self, lock_name, zkconf=None, zkclient=None, on_lost=None, identifier=None, ephemeral=True, timeout=10
+    ):
         if zkconf is None:
             zkconf = ZKConf()
         if isinstance(zkconf, dict):
@@ -53,7 +49,7 @@ class ZKLock(object):
             # This zkclient will be closed after lock is released
 
             if on_lost is None:
-                raise ValueError('on_lost must be specified to watch zk connection issue if no zkclient specified')
+                raise ValueError("on_lost must be specified to watch zk connection issue if no zkclient specified")
 
             zkclient = make_owning_zkclient(zkconf.hosts(), zkconf.auth())
             self.owning_client = True
@@ -66,11 +62,10 @@ class ZKLock(object):
         if not isinstance(identifier, dict):
             identifier = make_identifier(identifier, None)
 
-        assert sorted(['id', 'val']) == sorted(list(identifier.keys()))
+        assert sorted(["id", "val"]) == sorted(list(identifier.keys()))
 
         # a copy of hosts for debugging and tracking
-        self._hosts = ','.join(['{0}:{1}'.format(*x)
-                                for x in zkclient.hosts])
+        self._hosts = ",".join(["{0}:{1}".format(*x) for x in zkclient.hosts])
 
         self.zkclient = zkclient
         if isinstance(self.zkclient, KazooClientExt):
@@ -89,11 +84,10 @@ class ZKLock(object):
         self.maybe_available.set()
         self.lock_holder = None
 
-        logger.info('adding event listener: {s}'.format(s=self))
+        logger.info("adding event listener: {s}".format(s=self))
         self.zkclient.add_listener(self.on_connection_change)
 
     def on_node_change(self, watchevent):
-
         # Must be locked first.
         # Or there is a chance on_node_change is triggered before
         #         self.maybe_available.clear()
@@ -105,10 +99,9 @@ class ZKLock(object):
                 if self.on_lost is not None:
                     self.on_lost()
 
-        logger.info('node state changed:{ev}, lock might be released: {s}'.format(ev=watchevent, s=str(self)))
+        logger.info("node state changed:{ev}, lock might be released: {s}".format(ev=watchevent, s=str(self)))
 
     def on_connection_change(self, state):
-
         # notify zklock to re-do acquiring procedure, to trigger Connection Error
         with self.mutex:
             self.maybe_available.set()
@@ -117,14 +110,12 @@ class ZKLock(object):
             self.on_lost()
 
     def acquire_loop(self, timeout=None):
-
         if timeout is None:
             timeout = self.timeout
 
         expire_at = time.time() + timeout
 
         while True:
-
             # Even if timeout is smaller than 0, try-loop continue on until
             # maybe_available is not ready.
             #
@@ -135,11 +126,10 @@ class ZKLock(object):
             #  - Failed to get lock node(just deleted)
             #  - ...
             if not self.maybe_available.wait(timeout=expire_at - time.time()):
-
-                logger.debug('lock is still held by others: ' + str(self))
+                logger.debug("lock is still held by others: " + str(self))
 
                 if time.time() > expire_at:
-                    raise LockTimeout('lock: ' + str(self.lock_path))
+                    raise LockTimeout("lock: " + str(self.lock_path))
 
             # Always proceed the "get" phase, in order to add a watch handler.
             # To watch node change event.
@@ -156,7 +146,6 @@ class ZKLock(object):
                 yield self.lock_holder[0], self.lock_holder[1]
 
     def acquire(self, timeout=None):
-
         for holder, ver in self.acquire_loop(timeout=timeout):
             continue
 
@@ -203,7 +192,7 @@ class ZKLock(object):
         # - the 1st element is `False`,
         #           - the 2nd is identifier of the lock holder,
         #           - the 3rd is a non-negative integer, which is the version of the zk node.
-        logger.debug('try to release if I am locker holder: {s}'.format(s=str(self)))
+        logger.debug("try to release if I am locker holder: {s}".format(s=str(self)))
 
         try:
             holder, zstat = self.zkclient.get(self.lock_path)
@@ -211,16 +200,15 @@ class ZKLock(object):
 
             self.lock_holder = (holder, zstat.version)
 
-            logger.debug('got lock holder: {s}'.format(s=str(self)))
+            logger.debug("got lock holder: {s}".format(s=str(self)))
 
             if self.cmp_identifier(holder, self.identifier):
-
                 self.zkclient.remove_listener(self.on_connection_change)
 
                 try:
                     self.zkclient.delete(self.lock_path, version=zstat.version)
                 except NoNodeError as e:
-                    logger.info(repr(e) + ' while delete lock: ' + str(self))
+                    logger.info(repr(e) + " while delete lock: " + str(self))
 
                 self.lock_holder = None
 
@@ -229,7 +217,7 @@ class ZKLock(object):
                 return False, holder, zstat.version
 
         except NoNodeError as e:
-            logger.info(repr(e) + ' while try_release: {s}'.format(s=str(self)))
+            logger.info(repr(e) + " while try_release: {s}".format(s=str(self)))
             return True, self.identifier, -1
 
     def release(self):
@@ -242,70 +230,66 @@ class ZKLock(object):
         :return: Nothing
         """
         with self.mutex:
-
             if self.is_locked():
-
                 # remove listener to avoid useless event triggering
                 self.zkclient.remove_listener(self.on_connection_change)
 
                 try:
                     self.zkclient.delete(self.lock_path)
                 except NoNodeError as e:
-                    logger.info(repr(e) + ' while delete lock: ' + str(self))
+                    logger.info(repr(e) + " while delete lock: " + str(self))
 
                 self.lock_holder = None
 
-                logger.info('RELEASED: {s}'.format(s=str(self)))
+                logger.info("RELEASED: {s}".format(s=str(self)))
             else:
-                logger.info('not acquired, do not need to release')
+                logger.info("not acquired, do not need to release")
 
         self.close()
 
     def close(self):
-
         self.zkclient.remove_listener(self.on_connection_change)
 
         if self.owning_client:
-            logger.info('zk client is made by me, close it')
+            logger.info("zk client is made by me, close it")
             zkutil.close_zk(self.zkclient)
 
     def is_locked(self):
-
-        l = self.lock_holder
-        if l is None:
+        holder = self.lock_holder
+        if holder is None:
             return False
 
-        return self.cmp_identifier(l[0], self.identifier)
+        return self.cmp_identifier(holder[0], self.identifier)
 
     def _create(self):
-
-        logger.debug('to creaet: {s}'.format(s=str(self)))
+        logger.debug("to creaet: {s}".format(s=str(self)))
 
         try:
-            self.zkclient.create(self.lock_path,
-                                 k3utfjson.dump(self.identifier).encode("utf-8"),
-                                 ephemeral=self.ephemeral,
-                                 acl=self.zkconf.kazoo_digest_acl())
+            self.zkclient.create(
+                self.lock_path,
+                k3utfjson.dump(self.identifier).encode("utf-8"),
+                ephemeral=self.ephemeral,
+                acl=self.zkconf.kazoo_digest_acl(),
+            )
 
         except NodeExistsError as e:
-
             # NOTE Success create on server side might also results in failure
             # on client side due to network issue.
             # 'get' after 'create' to check if existent node belongs to this
             # client.
 
-            logger.debug(repr(e) + ' while create lock: {s}'.format(s=str(self)))
+            logger.debug(repr(e) + " while create lock: {s}".format(s=str(self)))
             self.lock_holder = None
             return
 
-        logger.info('CREATE OK: {s}'.format(s=str(self)))
+        logger.info("CREATE OK: {s}".format(s=str(self)))
 
     def set_lock_val(self, val, version=-1):
         locked, holder, ver = self.try_acquire()
         if not locked:
             raise ZKUtilError("set non-locked: {k}".format(k=self.lock_name))
 
-        self.identifier['val'] = val
+        self.identifier["val"] = val
 
         value = k3utfjson.dump(self.identifier).encode("utf-8")
         st = self.zkclient.set(self.lock_path, value, version=version)
@@ -316,44 +300,42 @@ class ZKLock(object):
         holder, zstat = self.zkclient.get(self.lock_path)
         holder = k3utfjson.load(holder)
 
-        return holder['val'], zstat.version
+        return holder["val"], zstat.version
 
     def cmp_identifier(self, ia, ib):
-        return ia['id'] == ib['id']
+        return ia["id"] == ib["id"]
 
     def _acquire_by_get(self):
-
-        logger.debug('to get: {s}'.format(s=str(self)))
+        logger.debug("to get: {s}".format(s=str(self)))
 
         try:
             with self.mutex:
-
                 holder, zstat = self.zkclient.get(self.lock_path, watch=self.on_node_change)
                 holder = k3utfjson.load(holder)
 
                 self.lock_holder = (holder, zstat.version)
 
-                logger.debug('got lock holder: {s}'.format(s=str(self)))
+                logger.debug("got lock holder: {s}".format(s=str(self)))
 
                 if self.cmp_identifier(holder, self.identifier):
-                    logger.info('ACQUIRED: {s}'.format(s=str(self)))
+                    logger.info("ACQUIRED: {s}".format(s=str(self)))
                     return
 
-                logger.debug('other holds: {s}'.format(s=str(self)))
+                logger.debug("other holds: {s}".format(s=str(self)))
                 self.maybe_available.clear()
 
         except NoNodeError as e:
             # create failed but when getting it, it has been deleted
-            logger.info(repr(e) + ' while get lock: {s}'.format(s=str(self)))
+            logger.info(repr(e) + " while get lock: {s}".format(s=str(self)))
             with self.mutex:
                 self.lock_holder = None
                 self.maybe_available.set()
 
     def __str__(self):
-        return '<id={id} {l}:[{holder}] on {h}>'.format(
-            id=self.identifier['id'],
+        return "<id={id} {l}:[{holder}] on {h}>".format(
+            id=self.identifier["id"],
             l=self.lock_path,
-            holder=(self.lock_holder or ''),
+            holder=(self.lock_holder or ""),
             h=str(self._hosts),
         )
 
@@ -365,16 +347,15 @@ class ZKLock(object):
 
 
 def make_owning_zkclient(hosts, auth):
-
     zkclient = KazooClient(hosts=hosts)
     zkclient.start()
 
     if auth is not None:
         scheme, name, passw = auth
-        zkclient.add_auth(scheme, name + ':' + passw)
+        zkclient.add_auth(scheme, name + ":" + passw)
 
     return zkclient
 
 
 def make_identifier(_id, val):
-    return {'id': _id, 'val': val}
+    return {"id": _id, "val": val}

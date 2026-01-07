@@ -41,8 +41,7 @@ def cas_loop(zkclient, path, json=True):
         zkclient.set(path, val, version=zstat.version)
 
     try:
-        for curr in k3txutil.cas_loop(zkclient.get, setter, args=(path, ),
-                                    conflicterror=BadVersionError):
+        for curr in k3txutil.cas_loop(zkclient.get, setter, args=(path,), conflicterror=BadVersionError):
             yield curr
     finally:
         if owning_zk:

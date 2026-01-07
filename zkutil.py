@@ -4,7 +4,6 @@ import logging
 import os
 import threading
 import time
-import types
 import uuid
 from collections import namedtuple
 
@@ -21,19 +20,19 @@ from .exceptions import ZKWaitTimeout
 logger = logging.getLogger(__name__)
 
 PERM_TO_LONG = {
-    'c': 'create',
-    'd': 'delete',
-    'r': 'read',
-    'w': 'write',
-    'a': 'admin',
+    "c": "create",
+    "d": "delete",
+    "r": "read",
+    "w": "write",
+    "a": "admin",
 }
 
 PERM_TO_SHORT = {
-    'create': 'c',
-    'delete': 'd',
-    'read': 'r',
-    'write': 'w',
-    'admin': 'a',
+    "create": "c",
+    "delete": "d",
+    "read": "r",
+    "write": "w",
+    "admin": "a",
 }
 
 # We assumes that ip does not change during process running.
@@ -56,19 +55,19 @@ def close_zk(zk):
     :return: nothing
     """
     if not isinstance(zk, KazooClient):
-        raise TypeError('expect KazooClient or KazooClientExt, but got {t}'.format(t=type(zk)))
+        raise TypeError("expect KazooClient or KazooClientExt, but got {t}".format(t=type(zk)))
 
     try:
         zk.stop()
 
     except KazooException as e:
-        logger.exception(repr(e) + ' while stop zk client')
+        logger.exception(repr(e) + " while stop zk client")
 
     try:
         zk.close()
 
     except Exception as e:
-        logger.exception(repr(e) + ' while close zk client')
+        logger.exception(repr(e) + " while close zk client")
 
 
 def lock_data(node_id=None):
@@ -100,11 +99,11 @@ def lock_id(node_id=None):
     if node_id is None:
         node_id = conf.zk_node_id
 
-    ip = (host_ip4 + ['unknownip'])[0]
+    ip = (host_ip4 + ["unknownip"])[0]
 
-    seq = [node_id, ip, str(os.getpid()), str(uuid.uuid4()).replace('-', '')]
+    seq = [node_id, ip, str(os.getpid()), str(uuid.uuid4()).replace("-", "")]
 
-    return '-'.join(seq)
+    return "-".join(seq)
 
 
 def parse_lock_data(data_str):
@@ -135,24 +134,17 @@ def parse_lock_id(data_str):
     This is added for zk-transaction implementation.
     """
 
-    node_id, ip, process_id, _uuid = (
-                                             data_str.split('-', 3) + ([None] * 4))[:4]
+    node_id, ip, process_id, _uuid = (data_str.split("-", 3) + ([None] * 4))[:4]
 
     if isinstance(process_id, str) and process_id.isdigit():
         process_id = int(process_id)
     else:
         process_id = None
 
-    rst = {
-        'node_id': node_id,
-        'ip': ip,
-        'process_id': process_id,
-        'uuid': _uuid,
-        'txid': None
-    }
+    rst = {"node_id": node_id, "ip": ip, "process_id": process_id, "uuid": _uuid, "txid": None}
 
-    if node_id.startswith('txid:'):
-        rst['txid'] = node_id.split(':', 1)[1]
+    if node_id.startswith("txid:"):
+        rst["txid"] = node_id.split(":", 1)[1]
 
     return rst
 
@@ -181,16 +173,15 @@ def make_acl_entry(username, password, permissions):
     "digest:<username>:<digest>:<permissions>"
     where `digest` is a string build by `zkutil.make_digest()`
     """
-    perms = ''
+    perms = ""
     for c in permissions:
         if c not in PERM_TO_LONG:
             raise PermTypeError(c)
         perms += c
 
     return "digest:{username}:{digest}:{permissions}".format(
-        username=username,
-        digest=make_digest(username + ":" + password),
-        permissions=perms)
+        username=username, digest=make_digest(username + ":" + password), permissions=perms
+    )
 
 
 def perm_to_long(short, lower=True):
@@ -228,7 +219,7 @@ def perm_to_short(lst, lower=True):
     By default it is `True`, for lower case.
     :return: a string of short permissions.
     """
-    rst = ''
+    rst = ""
 
     for p in lst:
         p = p.lower()
@@ -257,7 +248,7 @@ def make_kazoo_digest_acl(acl):
     # ]
 
     """
-    
+
     :param acl: acl in tuple or list.
     :return: a `list` of `kazoo.security.ACL`.
     """
@@ -266,8 +257,7 @@ def make_kazoo_digest_acl(acl):
 
     rst = []
     for name, passw, perms in acl:
-        perm_dict = {p: True
-                     for p in perm_to_long(perms)}
+        perm_dict = {p: True for p in perm_to_long(perms)}
         acl_entry = security.make_digest_acl(name, passw, **perm_dict)
         rst.append(acl_entry)
 
@@ -286,12 +276,12 @@ def parse_kazoo_acl(acls):
 
     rst = []
     for acl in acls:
-        if 'ALL' in acl.acl_list:
-            acl_list = 'cdrwa'
+        if "ALL" in acl.acl_list:
+            acl_list = "cdrwa"
         else:
             acl_list = perm_to_short(acl.acl_list)
 
-        rst.append((acl.id.scheme, acl.id.id.split(':')[0], acl_list))
+        rst.append((acl.id.scheme, acl.id.id.split(":")[0], acl_list))
 
     return rst
 
@@ -348,7 +338,7 @@ def is_backward_locking(locked_keys, key):
     :return: a `bool` indicate if locking `key` would be a backward-locking.
     """
     locked_keys = sorted(locked_keys)
-    assert key not in locked_keys, 'must not re-lock a key'
+    assert key not in locked_keys, "must not re-lock a key"
 
     if len(locked_keys) == 0:
         is_backward = False
@@ -359,7 +349,7 @@ def is_backward_locking(locked_keys, key):
 
 
 def _init_node(zkcli, parent_path, node, val, acl, users):
-    path = parent_path + '/' + node
+    path = parent_path + "/" + node
 
     if acl is None:
         acls = zkcli.get_acls(parent_path)[0]
@@ -402,32 +392,28 @@ def init_hierarchy(hosts, hierarchy, users, auth):
     zkcli.start()
 
     scheme, name, passw = auth
-    zkcli.add_auth(scheme, name + ':' + passw)
+    zkcli.add_auth(scheme, name + ":" + passw)
 
     def _init_hierarchy(hierarchy, parent_path):
-
         if len(hierarchy) == 0:
             return
 
         for node, attr_children in hierarchy.items():
-            val = attr_children.get('__val__', {})
+            val = attr_children.get("__val__", {})
             val = k3utfjson.dump(val).encode("utf-8")
-            acl = attr_children.get('__acl__')
+            acl = attr_children.get("__acl__")
 
             path = _init_node(zkcli, parent_path, node, val, acl, users)
-            children = {k: v
-                        for k, v in attr_children.items()
-                        if k not in ('__val__', '__acl__')
-                        }
+            children = {k: v for k, v in attr_children.items() if k not in ("__val__", "__acl__")}
 
             _init_hierarchy(children, path)
 
-    _init_hierarchy(hierarchy, '/')
+    _init_hierarchy(hierarchy, "/")
     close_zk(zkcli)
 
 
 def _make_zk_path(*paths):
-    return '/' + '/'.join([x.strip('/') for x in paths])
+    return "/" + "/".join([x.strip("/") for x in paths])
 
 
 def export_hierarchy(zkcli, zkpath):
@@ -438,12 +424,11 @@ def export_hierarchy(zkcli, zkpath):
     :param zkpath: is zookeeper root path that you want export
     :return:
     """
-    if zkpath != '/':
-        zkpath = zkpath.rstrip('/')
+    if zkpath != "/":
+        zkpath = zkpath.rstrip("/")
 
-    if not zkpath.startswith('/'):
-        raise ZkPathError(
-            'zkpath: {0} Error, Should be absolute path'.format(zkpath))
+    if not zkpath.startswith("/"):
+        raise ZkPathError("zkpath: {0} Error, Should be absolute path".format(zkpath))
 
     zk_node = _export_hierarchy(zkcli, zkpath)
 
@@ -461,7 +446,7 @@ def _export_hierarchy(zkcli, zkpath):
     for schema, user, perm in _acls:
         acls.update({user: perm})
 
-    _zk_node = {'__val__': value, '__acl__': acls}
+    _zk_node = {"__val__": value, "__acl__": acls}
 
     for child in zkcli.get_children(zkpath):
         _zkpath = _make_zk_path(zkpath, child)
@@ -471,7 +456,8 @@ def _export_hierarchy(zkcli, zkpath):
     return _zk_node
 
 
-NeedWait = namedtuple('NeedWait', [])
+NeedWait = namedtuple("NeedWait", [])
+
 
 # A collection of helper functions those block until a condition satisfied before
 # returning.
@@ -513,14 +499,13 @@ def _conditioned_get_loop(zkclient, path, conditioned_get, timeout=None, **kwarg
 
     def on_connection_change(state):
         # notify it to re-get, then raise Connection related error
-        logger.info('connection state change: {0}'.format(state))
+        logger.info("connection state change: {0}".format(state))
         set_available()
 
     zkclient.add_listener(on_connection_change)
 
     try:
         while True:
-
             it = conditioned_get(zkclient, path, **kwargs)
             next(it)
             rst = it.send((NeedWait, set_available))
@@ -533,16 +518,16 @@ def _conditioned_get_loop(zkclient, path, conditioned_get, timeout=None, **kwarg
                     maybe_available.clear()
                 continue
 
-            raise ZKWaitTimeout("timeout({timeout} sec)"
-                                " waiting for {path} to satisfy: {cond}".format(
-                timeout=timeout,
-                path=path,
-                cond=str(kwargs)))
+            raise ZKWaitTimeout(
+                "timeout({timeout} sec) waiting for {path} to satisfy: {cond}".format(
+                    timeout=timeout, path=path, cond=str(kwargs)
+                )
+            )
     finally:
         try:
             zkclient.remove_listener(on_connection_change)
         except Exception as e:
-            logger.info(repr(e) + ' while removing on_connection_change')
+            logger.info(repr(e) + " while removing on_connection_change")
 
 
 def make_conditioned_getter(conditioned_get):
@@ -586,7 +571,7 @@ def wait_absent(zkclient, path):
     try:
         zkclient.get(path, watch=lambda watchevent: set_available())
     except NoNodeError as e:
-        logger.info(repr(e) + ' found, return')
+        logger.info(repr(e) + " found, return")
         yield None
 
     yield NeedWait

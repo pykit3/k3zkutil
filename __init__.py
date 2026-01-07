@@ -3,11 +3,9 @@ Some helper function to make life easier with zookeeper.
 
 """
 
-# from .proc import CalledProcessError
-# from .proc import ProcError
+from importlib.metadata import version
 
-__version__ = "0.1.0"
-__name__ = "k3zkutil"
+__version__ = version("k3zkutil")
 
 from .exceptions import (
     ZKWaitTimeout,
@@ -20,7 +18,6 @@ from .zkacid import (
 from .zkconf import (
     KazooClientExt,
     ZKConf,
-
     kazoo_client_ext,
 )
 
@@ -40,17 +37,13 @@ from .zkutil import (
     perm_to_long,
     perm_to_short,
     wait_absent,
-
     get_next,
-
 )
 
 from .zklock import (
-
     ZKLock,
     LockTimeout,
     make_identifier,
-
 )
 
 from .cached_reader import (
@@ -62,12 +55,9 @@ __all__ = [
     "ZKWaitTimeout",
     "ZkPathError",
     "cas_loop",
-
     "KazooClientExt",
     "ZKConf",
-
     "kazoo_client_ext",
-
     "close_zk",
     "init_hierarchy",
     "export_hierarchy",
@@ -81,9 +71,7 @@ __all__ = [
     "perm_to_long",
     "perm_to_short",
     "wait_absent",
-
     "get_next",
-
     "ZKLock",
     "LockTimeout",
     "CachedReader",

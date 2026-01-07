@@ -78,7 +78,7 @@ class CachedReader(dict):
                 return self.val
 
         else:
-            raise exceptions.ZKWaitTimeout('timeout {t} sec'.format(t=timeout))
+            raise exceptions.ZKWaitTimeout("timeout {t} sec".format(t=timeout))
 
     def close(self):
         """
@@ -93,12 +93,12 @@ class CachedReader(dict):
             zkutil.close_zk(self.zke)
 
     def _on_conn_change(self, state):
-        logger.info('state changed: {state}'.format(state=state))
+        logger.info("state changed: {state}".format(state=state))
         self.stopped = True
         self.available_ev.set()
 
     def _on_node_change(self, event):
-        logger.info('node state changed:{ev}'.format(ev=event))
+        logger.info("node state changed:{ev}".format(ev=event))
 
         if self.stopped:
             return
