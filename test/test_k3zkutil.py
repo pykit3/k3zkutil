@@ -472,6 +472,13 @@ class TestZKinit(unittest.TestCase):
 
         for path, expected_rst in valid_cases:
             rst = k3zkutil.export_hierarchy(zkcli, path)
+            # Remove zookeeper system node for version-agnostic comparison
+            # (ZK 3.9 adds different system nodes than older versions)
+            if "zookeeper" in rst:
+                del rst["zookeeper"]
+            if "zookeeper" in expected_rst:
+                expected_rst = dict(expected_rst)  # copy to avoid modifying original
+                del expected_rst["zookeeper"]
             self.assertEqual(rst, expected_rst)
 
         zkcli.stop()
