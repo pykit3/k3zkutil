@@ -1,18 +1,35 @@
 #!/usr/bin/env python2
 # coding: utf-8
 
-import unittest
 import time
+import unittest
 
 from kazoo.client import KazooClient
 from kazoo.exceptions import NoNodeError
+from kazoo.handlers.threading import KazooTimeoutError
+
+import k3thread
 import k3utdocker
 import k3utfjson
 import k3zkutil
-import k3thread
 
 zk_test_name = "zk_test"
 zk_test_tag = "zookeeper:3.9"
+
+
+def wait_for_zk(hosts, timeout=60):
+    """Wait for zookeeper to be ready, retrying until timeout."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        zk = KazooClient(hosts=hosts)
+        try:
+            zk.start(timeout=5)
+            return zk
+        except KazooTimeoutError:
+            zk.stop()
+            zk.close()
+            time.sleep(1)
+    raise KazooTimeoutError(f"Zookeeper not ready after {timeout}s")
 
 
 class TestCachedReader(unittest.TestCase):
@@ -34,8 +51,7 @@ class TestCachedReader(unittest.TestCase):
             },
         )
 
-        self.zk = KazooClient(hosts="127.0.0.1:21811")
-        self.zk.start()
+        self.zk = wait_for_zk("127.0.0.1:21811")
         self.val = {"a": 1, "b": 2}
         self.zk.create("foo", k3utfjson.dump(self.val).encode("utf-8"))
 

@@ -7,6 +7,7 @@ from kazoo import security
 from kazoo.client import KazooClient
 from kazoo.exceptions import ConnectionClosedError
 from kazoo.exceptions import NoNodeError
+from kazoo.handlers.threading import KazooTimeoutError
 from k3confloader import conf
 
 import k3net
@@ -19,6 +20,21 @@ dd = k3ut.dd
 
 zk_tag = "zookeeper:3.9"
 zk_name = "zk_test"
+
+
+def wait_for_zk(hosts, timeout=60):
+    """Wait for zookeeper to be ready, retrying until timeout."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        zk = KazooClient(hosts=hosts)
+        try:
+            zk.start(timeout=5)
+            return zk
+        except KazooTimeoutError:
+            zk.stop()
+            zk.close()
+            time.sleep(1)
+    raise KazooTimeoutError(f"Zookeeper not ready after {timeout}s")
 
 
 class Testk3zkutil(unittest.TestCase):
@@ -253,6 +269,10 @@ class TestZKinit(unittest.TestCase):
 
         k3utdocker.start_container(zk_name, zk_tag, port_bindings={2181: 21811})
 
+        # Wait for zookeeper to be ready
+        zk = wait_for_zk("127.0.0.1:21811")
+        zk.stop()
+
         dd("start zk-test in docker")
 
     def tearDown(self):
@@ -474,8 +494,7 @@ class TestWait(unittest.TestCase):
             port_bindings={2181: 21811},
         )
 
-        self.zk = KazooClient("127.0.0.1:21811")
-        self.zk.start()
+        self.zk = wait_for_zk("127.0.0.1:21811")
 
         dd("start zk-test in docker")
 
