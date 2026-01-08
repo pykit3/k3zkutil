@@ -3,7 +3,6 @@ import unittest
 
 from kazoo.client import KazooClient
 from kazoo.exceptions import ConnectionClosedError
-from kazoo.handlers.threading import KazooTimeoutError
 
 import k3thread
 import k3ut
@@ -11,26 +10,12 @@ import k3utdocker
 import k3utfjson
 import k3zkutil
 from k3confloader import conf
+from k3zkutil.test.helper import wait_for_zk
 
 dd = k3ut.dd
 
 zk_test_name = "zk_test"
 zk_test_tag = "zookeeper:3.9"
-
-
-def wait_for_zk(hosts, timeout=60):
-    """Wait for zookeeper to be ready, retrying until timeout."""
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        zk = KazooClient(hosts=hosts)
-        try:
-            zk.start(timeout=5)
-            return zk
-        except KazooTimeoutError:
-            zk.stop()
-            zk.close()
-            time.sleep(1)
-    raise KazooTimeoutError(f"Zookeeper not ready after {timeout}s")
 
 
 zk_test_auth = ("digest", "xp", "123")
