@@ -1,7 +1,6 @@
 # k3zkutil
 
 [![Action-CI](https://github.com/pykit3/k3zkutil/actions/workflows/python-package.yml/badge.svg)](https://github.com/pykit3/k3zkutil/actions/workflows/python-package.yml)
-[![Build Status](https://travis-ci.com/pykit3/k3zkutil.svg?branch=master)](https://travis-ci.com/pykit3/k3zkutil)
 [![Documentation Status](https://readthedocs.org/projects/k3zkutil/badge/?version=stable)](https://k3zkutil.readthedocs.io/en/stable/?badge=stable)
 [![Package](https://img.shields.io/pypi/pyversions/k3zkutil)](https://pypi.org/project/k3zkutil)
 
