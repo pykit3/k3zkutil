@@ -1,21 +1,14 @@
-#!/usr/bin/env python
-# coding: utf-8
-
 import logging
 import threading
 import time
 
 import k3utfjson
-
 from kazoo.client import KazooClient
-from kazoo.exceptions import LockTimeout
-from kazoo.exceptions import NodeExistsError
-from kazoo.exceptions import NoNodeError
-from .exceptions import ZKUtilError
+from kazoo.exceptions import LockTimeout, NodeExistsError, NoNodeError
 
 from . import zkutil
-from .zkconf import ZKConf
-from .zkconf import KazooClientExt
+from .exceptions import ZKUtilError
+from .zkconf import KazooClientExt, ZKConf
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +22,7 @@ class ZKTXConnectionLost(ZKTXError):
 
 
 # TODO add method: ZKLock.get_owner() to get current lock owner
-class ZKLock(object):
+class ZKLock:
     """
     ZKLock implements a zookeeper based distributed lock.
     """
@@ -62,10 +55,10 @@ class ZKLock(object):
         if not isinstance(identifier, dict):
             identifier = make_identifier(identifier, None)
 
-        assert sorted(["id", "val"]) == sorted(list(identifier.keys()))
+        assert sorted(["id", "val"]) == sorted(identifier.keys())
 
         # a copy of hosts for debugging and tracking
-        self._hosts = ",".join(["{0}:{1}".format(*x) for x in zkclient.hosts])
+        self._hosts = ",".join(["{}:{}".format(*x) for x in zkclient.hosts])
 
         self.zkclient = zkclient
         if isinstance(self.zkclient, KazooClientExt):
@@ -84,7 +77,7 @@ class ZKLock(object):
         self.maybe_available.set()
         self.lock_holder = None
 
-        logger.info("adding event listener: {s}".format(s=self))
+        logger.info(f"adding event listener: {self}")
         self.zkclient.add_listener(self.on_connection_change)
 
     def on_node_change(self, watchevent):
@@ -95,11 +88,10 @@ class ZKLock(object):
             self.maybe_available.set()
 
             # If locked. the node change is treated as losing a lock
-            if self.is_locked():
-                if self.on_lost is not None:
-                    self.on_lost()
+            if self.is_locked() and self.on_lost is not None:
+                self.on_lost()
 
-        logger.info("node state changed:{ev}, lock might be released: {s}".format(ev=watchevent, s=str(self)))
+        logger.info(f"node state changed:{watchevent}, lock might be released: {self!s}")
 
     def on_connection_change(self, state):
         # notify zklock to re-do acquiring procedure, to trigger Connection Error
@@ -192,7 +184,7 @@ class ZKLock(object):
         # - the 1st element is `False`,
         #           - the 2nd is identifier of the lock holder,
         #           - the 3rd is a non-negative integer, which is the version of the zk node.
-        logger.debug("try to release if I am locker holder: {s}".format(s=str(self)))
+        logger.debug(f"try to release if I am locker holder: {self!s}")
 
         try:
             holder, zstat = self.zkclient.get(self.lock_path)
@@ -200,7 +192,7 @@ class ZKLock(object):
 
             self.lock_holder = (holder, zstat.version)
 
-            logger.debug("got lock holder: {s}".format(s=str(self)))
+            logger.debug(f"got lock holder: {self!s}")
 
             if self.cmp_identifier(holder, self.identifier):
                 self.zkclient.remove_listener(self.on_connection_change)
@@ -217,7 +209,7 @@ class ZKLock(object):
                 return False, holder, zstat.version
 
         except NoNodeError as e:
-            logger.info(repr(e) + " while try_release: {s}".format(s=str(self)))
+            logger.info(repr(e) + f" while try_release: {self!s}")
             return True, self.identifier, -1
 
     def release(self):
@@ -241,7 +233,7 @@ class ZKLock(object):
 
                 self.lock_holder = None
 
-                logger.info("RELEASED: {s}".format(s=str(self)))
+                logger.info(f"RELEASED: {self!s}")
             else:
                 logger.info("not acquired, do not need to release")
 
@@ -262,7 +254,7 @@ class ZKLock(object):
         return self.cmp_identifier(holder[0], self.identifier)
 
     def _create(self):
-        logger.debug("to creaet: {s}".format(s=str(self)))
+        logger.debug(f"to creaet: {self!s}")
 
         try:
             self.zkclient.create(
@@ -278,16 +270,16 @@ class ZKLock(object):
             # 'get' after 'create' to check if existent node belongs to this
             # client.
 
-            logger.debug(repr(e) + " while create lock: {s}".format(s=str(self)))
+            logger.debug(repr(e) + f" while create lock: {self!s}")
             self.lock_holder = None
             return
 
-        logger.info("CREATE OK: {s}".format(s=str(self)))
+        logger.info(f"CREATE OK: {self!s}")
 
     def set_lock_val(self, val, version=-1):
-        locked, holder, ver = self.try_acquire()
+        locked, _holder, _ver = self.try_acquire()
         if not locked:
-            raise ZKUtilError("set non-locked: {k}".format(k=self.lock_name))
+            raise ZKUtilError(f"set non-locked: {self.lock_name}")
 
         self.identifier["val"] = val
 
@@ -306,7 +298,7 @@ class ZKLock(object):
         return ia["id"] == ib["id"]
 
     def _acquire_by_get(self):
-        logger.debug("to get: {s}".format(s=str(self)))
+        logger.debug(f"to get: {self!s}")
 
         try:
             with self.mutex:
@@ -315,18 +307,18 @@ class ZKLock(object):
 
                 self.lock_holder = (holder, zstat.version)
 
-                logger.debug("got lock holder: {s}".format(s=str(self)))
+                logger.debug(f"got lock holder: {self!s}")
 
                 if self.cmp_identifier(holder, self.identifier):
-                    logger.info("ACQUIRED: {s}".format(s=str(self)))
+                    logger.info(f"ACQUIRED: {self!s}")
                     return
 
-                logger.debug("other holds: {s}".format(s=str(self)))
+                logger.debug(f"other holds: {self!s}")
                 self.maybe_available.clear()
 
         except NoNodeError as e:
             # create failed but when getting it, it has been deleted
-            logger.info(repr(e) + " while get lock: {s}".format(s=str(self)))
+            logger.info(repr(e) + f" while get lock: {self!s}")
             with self.mutex:
                 self.lock_holder = None
                 self.maybe_available.set()

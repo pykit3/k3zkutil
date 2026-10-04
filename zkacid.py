@@ -1,11 +1,10 @@
 import logging
 
+import k3txutil
 from kazoo.exceptions import BadVersionError
 
-import k3txutil
-
-from .zkconf import kazoo_client_ext
 from . import zkutil
+from .zkconf import kazoo_client_ext
 
 logger = logging.getLogger(__name__)
 
@@ -41,8 +40,7 @@ def cas_loop(zkclient, path, json=True):
         zkclient.set(path, val, version=zstat.version)
 
     try:
-        for curr in k3txutil.cas_loop(zkclient.get, setter, args=(path,), conflicterror=BadVersionError):
-            yield curr
+        yield from k3txutil.cas_loop(zkclient.get, setter, args=(path,), conflicterror=BadVersionError)
     finally:
         if owning_zk:
             zkutil.close_zk(zkclient)

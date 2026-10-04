@@ -1,15 +1,15 @@
 import time
 import unittest
 
-from kazoo.client import KazooClient
-from kazoo.exceptions import ConnectionClosedError
-
 import k3thread
 import k3ut
 import k3utdocker
 import k3utfjson
-import k3zkutil
 from k3confloader import conf
+from kazoo.client import KazooClient
+from kazoo.exceptions import ConnectionClosedError
+
+import k3zkutil
 from k3zkutil.test.helper import wait_for_zk
 
 dd = k3ut.dd
@@ -119,11 +119,7 @@ class TestZKLock(unittest.TestCase):
                 time.sleep(0.01)
                 self.counter -= 1
 
-                dd(
-                    "id={ident:0>2} n={ii:0>2} got and released lock: {holder}".format(
-                        ident=ident, ii=ii, holder=lock.lock_holder
-                    )
-                )
+                dd(f"id={ident:0>2} n={ii:0>2} got and released lock: {lock.lock_holder}")
 
         zk.stop()
 
@@ -256,14 +252,13 @@ class TestZKLock(unittest.TestCase):
         l1 = k3zkutil.ZKLock("foo_name", on_lost=lambda: True)
         l2 = k3zkutil.ZKLock("foo_name", on_lost=lambda: True)
 
-        with l1:
-            with k3ut.Timer() as t:
-                locked, holder, ver = l2.try_acquire()
-                self.assertFalse(locked)
-                self.assertEqual(l1.identifier, holder)
-                self.assertGreaterEqual(ver, 0)
+        with l1, k3ut.Timer() as t:
+            locked, holder, ver = l2.try_acquire()
+            self.assertFalse(locked)
+            self.assertEqual(l1.identifier, holder)
+            self.assertGreaterEqual(ver, 0)
 
-                self.assertAlmostEqual(0.0, t.spent(), delta=0.05)
+            self.assertAlmostEqual(0.0, t.spent(), delta=0.05)
 
         with k3ut.Timer() as t:
             locked, holder, ver = l2.try_acquire()
@@ -400,7 +395,7 @@ class TestZKLock(unittest.TestCase):
 
     def test_acl(self):
         with self.lck:
-            acls, zstat = self.zk.get_acls(self.lck.lock_path)
+            acls, _zstat = self.zk.get_acls(self.lck.lock_path)
 
         dd(acls)
         self.assertEqual(1, len(acls))
@@ -427,19 +422,19 @@ class TestZKLock(unittest.TestCase):
         def _check_ac(ac):
             self.assertEqual("digest", ac.id.scheme)
             self.assertEqual("foo", ac.id.id.split(":")[0])
-            self.assertEqual(set(["CREATE", "DELETE"]), set(ac.acl_list))
+            self.assertEqual({"CREATE", "DELETE"}, set(ac.acl_list))
 
         _check_ac(lock.zkconf.kazoo_digest_acl()[0])
 
         with lock:
             # should have created lock node
-            data, zstate = self.zk.get(lock.lock_path)
+            data, _zstate = self.zk.get(lock.lock_path)
             data = k3utfjson.load(data)["id"]
             dd(data)
 
             self.assertEqual("abc", data.split("-")[0])
 
-            acls, zstate = self.zk.get_acls(lock.lock_path)
+            acls, _zstate = self.zk.get_acls(lock.lock_path)
             dd(acls)
 
             _check_ac(acls[0])
@@ -449,9 +444,9 @@ class TestZKLock(unittest.TestCase):
     def test_hosts(self):
         lock = k3zkutil.ZKLock(
             "foo_name",
-            zkconf=dict(
-                hosts="127.0.0.1:21811",
-            ),
+            zkconf={
+                "hosts": "127.0.0.1:21811",
+            },
             on_lost=lambda: True,
         )
 
@@ -461,18 +456,18 @@ class TestZKLock(unittest.TestCase):
     def test_specify_identifier(self):
         a = k3zkutil.ZKLock(
             "foo_name",
-            zkconf=dict(
-                hosts="127.0.0.1:21811",
-            ),
+            zkconf={
+                "hosts": "127.0.0.1:21811",
+            },
             identifier="faked",
             on_lost=lambda: True,
         )
 
         b = k3zkutil.ZKLock(
             "foo_name",
-            zkconf=dict(
-                hosts="127.0.0.1:21811",
-            ),
+            zkconf={
+                "hosts": "127.0.0.1:21811",
+            },
             identifier="faked",
             on_lost=lambda: True,
         )
@@ -488,9 +483,9 @@ class TestZKLock(unittest.TestCase):
     def test_release_owning_client_stopped(self):
         lock = k3zkutil.ZKLock(
             "foo_name",
-            zkconf=dict(
-                hosts="127.0.0.1:21811",
-            ),
+            zkconf={
+                "hosts": "127.0.0.1:21811",
+            },
             on_lost=lambda: True,
         )
 

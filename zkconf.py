@@ -1,15 +1,11 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-from kazoo.client import KazooClient
-
-from k3confloader import conf
 import k3utfjson
+from k3confloader import conf
+from kazoo.client import KazooClient
 
 from . import zkutil
 
 
-class ZKConf(object):
+class ZKConf:
     """
     It is a config wrapper, provding several method for accessing config.
     If one of the config field is not spedified when initializing this class, it
@@ -80,13 +76,13 @@ class ZKConf(object):
         return "".join([self.lock_dir(), _dump_txid(key)])
 
     def record(self, key=""):
-        return "".join([self.record_dir(), key])
+        return self.record_dir() + key
 
     def seq_dir(self):
         return self._get_config("seq_dir")
 
     def seq(self, key=""):
-        return "".join([self.seq_dir(), key])
+        return self.seq_dir() + key
 
     def tx_dir(self):
         return self._get_config("tx_dir")
@@ -101,10 +97,10 @@ class ZKConf(object):
         return "".join([self.tx_dir(), "journal/", _dump_journal_id(journal_id)])
 
     def journal_id_set(self):
-        return "".join([self.tx_dir(), "journal_id_set"])
+        return self.tx_dir() + "journal_id_set"
 
     def txid_maker(self):
-        return "".join([self.tx_dir(), "txid_maker"])
+        return self.tx_dir() + "txid_maker"
 
     def kazoo_digest_acl(self):
         a = self.acl()
@@ -180,14 +176,14 @@ def _dump_txid(txid):
     if isinstance(txid, str):
         return txid
     elif isinstance(txid, int):
-        return "%010d" % txid
+        return f"{txid:010d}"
     else:
         raise TypeError("invalid type txid: " + repr(txid))
 
 
 def _dump_journal_id(journal_id):
     if isinstance(journal_id, int):
-        return "journal_id%010d" % journal_id
+        return f"journal_id{journal_id:010d}"
     elif isinstance(journal_id, str):
         return journal_id
     else:

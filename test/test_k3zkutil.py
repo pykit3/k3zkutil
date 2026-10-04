@@ -3,16 +3,15 @@ import time
 import unittest
 import uuid
 
-from kazoo import security
-from kazoo.client import KazooClient
-from kazoo.exceptions import ConnectionClosedError
-from kazoo.exceptions import NoNodeError
-from k3confloader import conf
-
 import k3net
 import k3thread
 import k3ut
 import k3utdocker
+from k3confloader import conf
+from kazoo import security
+from kazoo.client import KazooClient
+from kazoo.exceptions import ConnectionClosedError, NoNodeError
+
 import k3zkutil
 from k3zkutil.test.helper import wait_for_zk
 
@@ -35,7 +34,7 @@ class Testk3zkutil(unittest.TestCase):
         self.assertEqual(os.getpid(), int(elts[2]))
 
     def test_lock_id_default(self):
-        expected = "%012x" % uuid.getnode()
+        expected = f"{uuid.getnode():012x}"
 
         k = k3zkutil.lock_id()
         dd(conf)
@@ -65,7 +64,7 @@ class Testk3zkutil(unittest.TestCase):
         for inp, expected in cases:
             rst = k3zkutil.parse_lock_id(inp)
 
-            self.assertEqual(set(["node_id", "ip", "process_id", "uuid", "txid"]), set(rst.keys()))
+            self.assertEqual({"node_id", "ip", "process_id", "uuid", "txid"}, set(rst.keys()))
 
             self.assertEqual(expected, (rst["node_id"], rst["ip"], rst["process_id"]))
 
@@ -201,12 +200,12 @@ class Testk3zkutil(unittest.TestCase):
         ac = rst[0]
         self.assertEqual("digest", ac.id.scheme)
         self.assertEqual("foo", ac.id.id.split(":")[0])
-        self.assertEqual(set(["CREATE", "DELETE"]), set(ac.acl_list))
+        self.assertEqual({"CREATE", "DELETE"}, set(ac.acl_list))
 
         ac = rst[1]
         self.assertEqual("digest", ac.id.scheme)
         self.assertEqual("xp", ac.id.id.split(":")[0])
-        self.assertEqual(set(["ALL"]), set(ac.acl_list))
+        self.assertEqual({"ALL"}, set(ac.acl_list))
 
         self.assertIsNone(k3zkutil.make_kazoo_digest_acl(None))
 
@@ -300,25 +299,25 @@ class TestZKinit(unittest.TestCase):
                 "/node1",
                 b'"node1_val"',
                 [("digest", "aa", "cdrwa"), ("digest", "bb", "rw")],
-                set(["node11", "node12", "node13"]),
+                {"node11", "node12", "node13"},
             ),
-            ("/node1/node11", b'"node11_val"', [("digest", "aa", "cdrwa"), ("digest", "cc", "r")], set([])),
-            ("/node1/node12", b'"node12_val"', [("digest", "aa", "cdrwa"), ("digest", "bb", "rw")], set(["node121"])),
-            ("/node1/node12/node121", b'"node121_val"', [("digest", "aa", "cdrwa"), ("digest", "bb", "rw")], set([])),
-            ("/node1/node13", b"{}", [("digest", "aa", "cdrwa")], set([])),
-            ("/node2", b'"node2_val"', [("world", "anyone", "cdrwa")], set(["node21", "node22"])),
-            ("/node2/node21", b'"node21_val"', [("world", "anyone", "cdrwa")], set([])),
-            ("/node2/node22", b"{}", [("digest", "aa", "rwa")], set([])),
-            ("/node3", b"{}", [("digest", "aa", "rwca"), ("digest", "cc", "r")], set(["node31"])),
-            ("/node3/node31", b"{}", [("digest", "aa", "rwca"), ("digest", "cc", "r")], set(["node311"])),
+            ("/node1/node11", b'"node11_val"', [("digest", "aa", "cdrwa"), ("digest", "cc", "r")], set()),
+            ("/node1/node12", b'"node12_val"', [("digest", "aa", "cdrwa"), ("digest", "bb", "rw")], {"node121"}),
+            ("/node1/node12/node121", b'"node121_val"', [("digest", "aa", "cdrwa"), ("digest", "bb", "rw")], set()),
+            ("/node1/node13", b"{}", [("digest", "aa", "cdrwa")], set()),
+            ("/node2", b'"node2_val"', [("world", "anyone", "cdrwa")], {"node21", "node22"}),
+            ("/node2/node21", b'"node21_val"', [("world", "anyone", "cdrwa")], set()),
+            ("/node2/node22", b"{}", [("digest", "aa", "rwa")], set()),
+            ("/node3", b"{}", [("digest", "aa", "rwca"), ("digest", "cc", "r")], {"node31"}),
+            ("/node3/node31", b"{}", [("digest", "aa", "rwca"), ("digest", "cc", "r")], {"node311"}),
             (
                 "/node3/node31/node311",
                 b"{}",
                 [("digest", "aa", "rwca"), ("digest", "cc", "r")],
-                set(["node3111", "node3112"]),
+                {"node3111", "node3112"},
             ),
-            ("/node3/node31/node311/node3111", b"{}", [("digest", "aa", "rwca"), ("digest", "cc", "r")], set([])),
-            ("/node3/node31/node311/node3112", b"{}", [("digest", "aa", "rwca"), ("digest", "cc", "r")], set([])),
+            ("/node3/node31/node311/node3111", b"{}", [("digest", "aa", "rwca"), ("digest", "cc", "r")], set()),
+            ("/node3/node31/node311/node3112", b"{}", [("digest", "aa", "rwca"), ("digest", "cc", "r")], set()),
         )
 
         for node, val, acl, children in expected_nodes:

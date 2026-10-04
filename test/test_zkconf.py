@@ -1,7 +1,8 @@
 import unittest
 
-from k3confloader import conf
 import k3ut
+from k3confloader import conf
+
 import k3zkutil
 
 dd = k3ut.dd

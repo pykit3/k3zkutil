@@ -1,9 +1,9 @@
 import unittest
 
-
 import k3thread
 import k3ut
 import k3utdocker
+
 import k3zkutil
 from k3zkutil.test.helper import wait_for_zk
 

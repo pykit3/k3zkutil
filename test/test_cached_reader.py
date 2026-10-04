@@ -1,14 +1,11 @@
-#!/usr/bin/env python2
-# coding: utf-8
-
 import time
 import unittest
-
-from kazoo.exceptions import NoNodeError
 
 import k3thread
 import k3utdocker
 import k3utfjson
+from kazoo.exceptions import NoNodeError
+
 import k3zkutil
 from k3zkutil.test.helper import wait_for_zk
 

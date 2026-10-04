@@ -1,12 +1,7 @@
-#!/usr/bin/env python2
-# coding: utf-8
-
 import logging
 import threading
 
-from . import zkconf
-from . import zkutil
-from . import exceptions
+from . import exceptions, zkconf, zkutil
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +30,7 @@ class CachedReader(dict):
         :param callback: give a callback when the node change. Defaults to `None`.
         It has 3 arguments `(path, old_dict, new_dict)`.
         """
-        super(CachedReader, self).__init__()
+        super().__init__()
 
         self.zke, self.owning_zk = zkconf.kazoo_client_ext(zk)
         self.path = path
@@ -78,7 +73,7 @@ class CachedReader(dict):
                 return self.val
 
         else:
-            raise exceptions.ZKWaitTimeout("timeout {t} sec".format(t=timeout))
+            raise exceptions.ZKWaitTimeout(f"timeout {timeout} sec")
 
     def close(self):
         """
@@ -93,12 +88,12 @@ class CachedReader(dict):
             zkutil.close_zk(self.zke)
 
     def _on_conn_change(self, state):
-        logger.info("state changed: {state}".format(state=state))
+        logger.info(f"state changed: {state}")
         self.stopped = True
         self.available_ev.set()
 
     def _on_node_change(self, event):
-        logger.info("node state changed:{ev}".format(ev=event))
+        logger.info(f"node state changed:{event}")
 
         if self.stopped:
             return

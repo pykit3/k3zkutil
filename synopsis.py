@@ -9,13 +9,13 @@ config.zk_lock_dir # 'lock/'
 """
 with k3zkutil.ZKLock(
     "foo_lock",
-    zkconf=dict(
-        hosts="127.0.0.1:2181",
-        acl=(("xp", "123", "cdrwa"),),
-        auth=("digest", "xp", "123"),
-        node_id="web-3",
-        lock_dir="my_locks/",
-    ),
+    zkconf={
+        "hosts": "127.0.0.1:2181",
+        "acl": (("xp", "123", "cdrwa"),),
+        "auth": ("digest", "xp", "123"),
+        "node_id": "web-3",
+        "lock_dir": "my_locks/",
+    },
 ):
     print("do something")
 lock = k3zkutil.ZKLock("foo")

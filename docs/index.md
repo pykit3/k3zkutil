@@ -20,7 +20,7 @@ pip install k3zkutil
 import k3zkutil
 
 # Create a distributed lock
-with k3zkutil.ZKLock('my_lock', zk_client):
+with k3zkutil.ZKLock("my_lock", zk_client):
     # Do something with exclusive access
     pass
 ```

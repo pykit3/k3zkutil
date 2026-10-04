@@ -7,13 +7,12 @@ import time
 import uuid
 from collections import namedtuple
 
-from kazoo import security
-from kazoo.client import KazooClient
-from kazoo.exceptions import NoNodeError
-from kazoo.exceptions import KazooException
-from k3confloader import conf
 import k3net
 import k3utfjson
+from k3confloader import conf
+from kazoo import security
+from kazoo.client import KazooClient
+from kazoo.exceptions import KazooException, NoNodeError
 
 from .exceptions import ZKWaitTimeout
 
@@ -55,19 +54,19 @@ def close_zk(zk):
     :return: nothing
     """
     if not isinstance(zk, KazooClient):
-        raise TypeError("expect KazooClient or KazooClientExt, but got {t}".format(t=type(zk)))
+        raise TypeError(f"expect KazooClient or KazooClientExt, but got {type(zk)}")
 
     try:
         zk.stop()
 
-    except KazooException as e:
-        logger.exception(repr(e) + " while stop zk client")
+    except KazooException:
+        logger.exception("while stop zk client")
 
     try:
         zk.close()
 
-    except Exception as e:
-        logger.exception(repr(e) + " while close zk client")
+    except Exception:
+        logger.exception("while close zk client")
 
 
 def lock_data(node_id=None):
@@ -428,7 +427,7 @@ def export_hierarchy(zkcli, zkpath):
         zkpath = zkpath.rstrip("/")
 
     if not zkpath.startswith("/"):
-        raise ZkPathError("zkpath: {0} Error, Should be absolute path".format(zkpath))
+        raise ZkPathError(f"zkpath: {zkpath} Error, Should be absolute path")
 
     zk_node = _export_hierarchy(zkcli, zkpath)
 
@@ -438,9 +437,9 @@ def export_hierarchy(zkcli, zkpath):
 def _export_hierarchy(zkcli, zkpath):
     acls = {}
 
-    value, stat = zkcli.get(zkpath)
+    value, _stat = zkcli.get(zkpath)
 
-    _acls, stat = zkcli.get_acls(zkpath)
+    _acls, _stat = zkcli.get_acls(zkpath)
     _acls = parse_kazoo_acl(_acls)
 
     for schema, user, perm in _acls:
@@ -499,7 +498,7 @@ def _conditioned_get_loop(zkclient, path, conditioned_get, timeout=None, **kwarg
 
     def on_connection_change(state):
         # notify it to re-get, then raise Connection related error
-        logger.info("connection state change: {0}".format(state))
+        logger.info(f"connection state change: {state}")
         set_available()
 
     zkclient.add_listener(on_connection_change)
@@ -518,15 +517,12 @@ def _conditioned_get_loop(zkclient, path, conditioned_get, timeout=None, **kwarg
                     maybe_available.clear()
                 continue
 
-            raise ZKWaitTimeout(
-                "timeout({timeout} sec) waiting for {path} to satisfy: {cond}".format(
-                    timeout=timeout, path=path, cond=str(kwargs)
-                )
-            )
+            raise ZKWaitTimeout(f"timeout({timeout} sec) waiting for {path} to satisfy: {kwargs!s}")
     finally:
         try:
             zkclient.remove_listener(on_connection_change)
-        except Exception as e:
+        # Cleanup in `finally` must not mask the return value or the original error.
+        except Exception as e:  # noqa: BLE001
             logger.info(repr(e) + " while removing on_connection_change")
 
 
