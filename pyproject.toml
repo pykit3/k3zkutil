@@ -28,7 +28,6 @@ dependencies = [
     "kazoo>=2.8.0",
     "k3utfjson",
     "k3net",
-    "k3thread",
     "k3txutil",
     "k3confloader",
 ]
@@ -44,6 +43,7 @@ dev = [
     "coverage",
     "k3ut",
     "k3utdocker",
+    "k3thread",
 ]
 publish = [
     "build",
