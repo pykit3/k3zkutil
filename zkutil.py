@@ -337,7 +337,8 @@ def is_backward_locking(locked_keys, key):
     :return: a `bool` indicate if locking `key` would be a backward-locking.
     """
     locked_keys = sorted(locked_keys)
-    assert key not in locked_keys, "must not re-lock a key"
+    if key in locked_keys:
+        raise ValueError(f"must not re-lock a key, but: {key!r}")
 
     if len(locked_keys) == 0:
         is_backward = False

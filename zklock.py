@@ -55,7 +55,8 @@ class ZKLock:
         if not isinstance(identifier, dict):
             identifier = make_identifier(identifier, None)
 
-        assert sorted(["id", "val"]) == sorted(identifier.keys())
+        if sorted(["id", "val"]) != sorted(identifier.keys()):
+            raise ValueError(f'identifier must have keys "id" and "val" only, but: {identifier!r}')
 
         # a copy of hosts for debugging and tracking
         self._hosts = ",".join(["{}:{}".format(*x) for x in zkclient.hosts])

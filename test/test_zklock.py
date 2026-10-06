@@ -491,3 +491,11 @@ class TestZKLock(unittest.TestCase):
 
         lock.release()
         self.assertTrue(lock.zkclient._stopped.is_set())
+
+
+class TestZKLockIdentifier(unittest.TestCase):
+    def test_invalid_identifier(self):
+        # ZKLock checks the identifier before it uses the zkclient, so no ZooKeeper is needed.
+        for identifier in ({"id": "foo"}, {"id": "foo", "val": None, "extra": None}):
+            dd("identifier:", identifier)
+            self.assertRaises(ValueError, k3zkutil.ZKLock, "foo_name", zkclient=object(), identifier=identifier)

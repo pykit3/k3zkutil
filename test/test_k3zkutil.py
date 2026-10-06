@@ -227,9 +227,9 @@ class Testk3zkutil(unittest.TestCase):
     def test_is_backward_locking(self):
         cases = (
             ([], "a", False, None),
-            (["a"], "a", False, AssertionError),
-            (["a", "c"], "a", True, AssertionError),
-            (["a", "c"], "c", True, AssertionError),
+            (["a"], "a", False, ValueError),
+            (["a", "c"], "a", True, ValueError),
+            (["a", "c"], "c", True, ValueError),
             (["a", "c"], "", True, None),
             (["a", "c"], "b", True, None),
             (["a", "c"], "d", False, None),
