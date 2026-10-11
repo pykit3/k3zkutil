@@ -168,6 +168,7 @@ class KazooClientExt(KazooClient):
 
     def create(self, path, value=b"", acl=None, ephemeral=False, sequence=False, makepath=False):
         value = self._jd(value)
+        value = self._encode(value)
 
         return self._zk.create(path, value=value, acl=acl, ephemeral=ephemeral, sequence=sequence, makepath=makepath)
 

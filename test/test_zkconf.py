@@ -1,7 +1,9 @@
 import unittest
+from unittest import mock
 
 import k3ut
 from k3confloader import conf
+from kazoo.client import KazooClient
 
 import k3zkutil
 
@@ -118,3 +120,27 @@ class TestZKConf(unittest.TestCase):
             conf.zk_auth,
             conf.zk_acl,
         ) = old
+
+
+class TestKazooClientExt(unittest.TestCase):
+    def test_create_set_encode(self):
+        # The raw client is a mock that records its calls, so no ZooKeeper is needed.
+        cases = (
+            (True, {"x": 1}, b'{"x": 1}'),
+            (False, "x", b"x"),
+        )
+
+        for use_json, value, expected in cases:
+            dd("json:", use_json, "value:", value)
+
+            raw = mock.create_autospec(KazooClient, instance=True)
+            zk = k3zkutil.KazooClientExt(raw, json=use_json)
+
+            zk.create("/a", value)
+            zk.set("/a", value)
+
+            want = [
+                mock.call.create("/a", value=expected, acl=None, ephemeral=False, sequence=False, makepath=False),
+                mock.call.set("/a", expected, version=-1),
+            ]
+            self.assertEqual(want, raw.mock_calls)
