@@ -63,7 +63,13 @@ class CachedReader(dict):
         """
         self.available_ev.clear()
 
-        timeout = timeout or 86400 * 365
+        # close() sets stopped before it sets the event, so a close() whose
+        # event was just cleared is still seen here
+        if self.stopped:
+            return None
+
+        if timeout is None:
+            timeout = 86400 * 365
 
         if self.available_ev.wait(timeout):
             if self.stopped:

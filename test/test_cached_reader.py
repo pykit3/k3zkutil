@@ -1,5 +1,6 @@
 import time
 import unittest
+from unittest import mock
 
 import k3thread
 import k3utdocker
@@ -7,6 +8,7 @@ import k3utfjson
 from kazoo.exceptions import NoNodeError
 
 import k3zkutil
+from k3zkutil import zkconf
 from k3zkutil.test.helper import wait_for_zk
 
 zk_test_name = "zk_test"
@@ -95,3 +97,27 @@ class TestCachedReader(unittest.TestCase):
 
         k3thread.daemon(_close, after=1)
         self.assertEqual(None, c.watch())
+
+
+class TestCachedReaderWatch(unittest.TestCase):
+    # watch() waits only on an event, so a mocked client is enough and no ZooKeeper is needed.
+
+    def test_watch_after_close(self):
+        zke = mock.Mock()
+        zke.get.return_value = ({"a": 1}, None)
+        with mock.patch.object(zkconf, "kazoo_client_ext", return_value=(zke, False)):
+            c = k3zkutil.CachedReader("127.0.0.1:21811", "foo")
+
+        c.close()
+        got = c.watch(timeout=1)
+        self.assertIsNone(got)
+
+    def test_watch_zero_timeout(self):
+        zke = mock.Mock()
+        zke.get.return_value = ({"a": 1}, None)
+        with mock.patch.object(zkconf, "kazoo_client_ext", return_value=(zke, False)):
+            c = k3zkutil.CachedReader("127.0.0.1:21811", "foo")
+
+        # close() ends the wait if timeout=0 is taken as the one-year default
+        k3thread.daemon(c.close, after=1)
+        self.assertRaises(k3zkutil.ZKWaitTimeout, c.watch, timeout=0)
