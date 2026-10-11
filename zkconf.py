@@ -219,10 +219,15 @@ def kazoo_client_ext(zk, json=True):
     if zkclient._zkconf is None:
         zkclient._zkconf = zkconf
 
-    zkclient.start()
+    try:
+        zkclient.start()
 
-    auth = zkconf.kazoo_auth()
-    if auth is not None:
-        zkclient.add_auth(*auth)
+        auth = zkconf.kazoo_auth()
+        if auth is not None:
+            zkclient.add_auth(*auth)
+    except BaseException:
+        if owning:
+            zkutil.close_zk(zkclient)
+        raise
 
     return zkclient, owning

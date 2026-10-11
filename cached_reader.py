@@ -50,7 +50,11 @@ class CachedReader(dict):
         self.conn_change_cb = _conn_change_cb
         self.node_change_cb = _node_change_cb
         self.zke.add_listener(self.conn_change_cb)
-        self._update()
+        try:
+            self._update()
+        except BaseException:
+            self.close()
+            raise
 
     def watch(self, timeout=None):
         """

@@ -4,6 +4,7 @@ from unittest import mock
 import k3ut
 from k3confloader import conf
 from kazoo.client import KazooClient
+from kazoo.exceptions import AuthFailedError
 
 import k3zkutil
 
@@ -144,3 +145,15 @@ class TestKazooClientExt(unittest.TestCase):
                 mock.call.set("/a", expected, version=-1),
             ]
             self.assertEqual(want, raw.mock_calls)
+
+    def test_auth_error_closes_owned_client(self):
+        # kazoo_client_ext() creates the client from the hosts, so the KazooClient methods are mocked.
+        with mock.patch.multiple(
+            KazooClient, start=mock.DEFAULT, add_auth=mock.DEFAULT, stop=mock.DEFAULT, close=mock.DEFAULT
+        ) as m:
+            m["add_auth"].side_effect = AuthFailedError()
+            zk = {"hosts": "127.0.0.1:21811", "auth": ("digest", "a", "b")}
+            self.assertRaises(AuthFailedError, k3zkutil.kazoo_client_ext, zk)
+
+        self.assertEqual([mock.call()], m["stop"].mock_calls)
+        self.assertEqual([mock.call()], m["close"].mock_calls)

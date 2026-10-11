@@ -36,6 +36,20 @@ class ZKLock:
             zkconf = ZKConf(**zkconf)
         self.zkconf = zkconf
 
+        # Check the arguments before creating a client, so that a bad argument
+        # does not leave a started client behind.
+        if identifier is None:
+            identifier = zkutil.lock_id(zkconf.node_id())
+
+        if not isinstance(identifier, dict):
+            identifier = make_identifier(identifier, None)
+
+        if sorted(["id", "val"]) != sorted(identifier.keys()):
+            raise ValueError(f'identifier must have keys "id" and "val" only, but: {identifier!r}')
+
+        self.lock_name = lock_name
+        self.lock_path = zkconf.lock(self.lock_name)
+
         if zkclient is None:
             # If user does not pass a zkclient instance,
             # we need to create one for lock to use.
@@ -49,15 +63,6 @@ class ZKLock:
         else:
             self.owning_client = False
 
-        if identifier is None:
-            identifier = zkutil.lock_id(zkconf.node_id())
-
-        if not isinstance(identifier, dict):
-            identifier = make_identifier(identifier, None)
-
-        if sorted(["id", "val"]) != sorted(identifier.keys()):
-            raise ValueError(f'identifier must have keys "id" and "val" only, but: {identifier!r}')
-
         # a copy of hosts for debugging and tracking
         self._hosts = ",".join(["{}:{}".format(*x) for x in zkclient.hosts])
 
@@ -67,8 +72,6 @@ class ZKLock:
 
         self.on_lost = on_lost
 
-        self.lock_name = lock_name
-        self.lock_path = zkconf.lock(self.lock_name)
         self.identifier = identifier
         self.ephemeral = ephemeral
         self.timeout = timeout
@@ -341,11 +344,16 @@ class ZKLock:
 
 def make_owning_zkclient(hosts, auth):
     zkclient = KazooClient(hosts=hosts)
-    zkclient.start()
 
-    if auth is not None:
-        scheme, name, passw = auth
-        zkclient.add_auth(scheme, name + ":" + passw)
+    try:
+        zkclient.start()
+
+        if auth is not None:
+            scheme, name, passw = auth
+            zkclient.add_auth(scheme, name + ":" + passw)
+    except BaseException:
+        zkutil.close_zk(zkclient)
+        raise
 
     return zkclient
 

@@ -1,5 +1,6 @@
 import time
 import unittest
+from unittest import mock
 
 import k3thread
 import k3ut
@@ -7,9 +8,10 @@ import k3utdocker
 import k3utfjson
 from k3confloader import conf
 from kazoo.client import KazooClient
-from kazoo.exceptions import ConnectionClosedError
+from kazoo.exceptions import AuthFailedError, ConnectionClosedError
 
 import k3zkutil
+from k3zkutil import zklock
 from k3zkutil.test.helper import wait_for_zk
 
 dd = k3ut.dd
@@ -499,3 +501,25 @@ class TestZKLockIdentifier(unittest.TestCase):
         for identifier in ({"id": "foo"}, {"id": "foo", "val": None, "extra": None}):
             dd("identifier:", identifier)
             self.assertRaises(ValueError, k3zkutil.ZKLock, "foo_name", zkclient=object(), identifier=identifier)
+
+
+class TestZKLockOwnedClient(unittest.TestCase):
+    # The client is mocked, so no ZooKeeper is needed.
+
+    def test_bad_argument_creates_no_client(self):
+        with mock.patch.object(zklock, "make_owning_zkclient") as make:
+            self.assertRaises(ValueError, k3zkutil.ZKLock, "foo_name", on_lost=lambda: True, identifier={"id": "foo"})
+            self.assertRaises(TypeError, k3zkutil.ZKLock, 1.5, on_lost=lambda: True)
+
+        self.assertEqual([], make.mock_calls)
+
+    def test_auth_error_closes_client(self):
+        with mock.patch.multiple(
+            KazooClient, start=mock.DEFAULT, add_auth=mock.DEFAULT, stop=mock.DEFAULT, close=mock.DEFAULT
+        ) as m:
+            m["add_auth"].side_effect = AuthFailedError()
+            zkconf = {"hosts": "127.0.0.1:21811", "auth": ("digest", "a", "b")}
+            self.assertRaises(AuthFailedError, k3zkutil.ZKLock, "foo_name", zkconf=zkconf, on_lost=lambda: True)
+
+        self.assertEqual([mock.call()], m["stop"].mock_calls)
+        self.assertEqual([mock.call()], m["close"].mock_calls)

@@ -121,3 +121,22 @@ class TestCachedReaderWatch(unittest.TestCase):
         # close() ends the wait if timeout=0 is taken as the one-year default
         k3thread.daemon(c.close, after=1)
         self.assertRaises(k3zkutil.ZKWaitTimeout, c.watch, timeout=0)
+
+
+class TestCachedReaderInitError(unittest.TestCase):
+    def test_close_owned_client(self):
+        # The client is a mock that records its calls, so no ZooKeeper is needed.
+        zke = mock.create_autospec(k3zkutil.KazooClientExt, instance=True)
+        zke.get.side_effect = NoNodeError()
+        with mock.patch.object(zkconf, "kazoo_client_ext", return_value=(zke, True)):
+            self.assertRaises(NoNodeError, k3zkutil.CachedReader, "127.0.0.1:21811", "bar")
+
+        conn_change_cb = zke.add_listener.call_args.args[0]
+        want = [
+            mock.call.add_listener(conn_change_cb),
+            mock.call.get("bar", watch=mock.ANY),
+            mock.call.remove_listener(conn_change_cb),
+            mock.call.stop(),
+            mock.call.close(),
+        ]
+        self.assertEqual(want, zke.mock_calls)
