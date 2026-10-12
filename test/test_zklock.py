@@ -342,6 +342,20 @@ class TestZKLock(unittest.TestCase):
             time.sleep(0.1)
             self.assertFalse(sess["acquired"])
 
+    def test_release_after_node_replaced(self):
+        # Another lock creates the node after l1 lost it, and l1.release() leaves the node of the new owner.
+        l1 = k3zkutil.ZKLock("foo_name", zkclient=self.zk)
+        l2 = k3zkutil.ZKLock("foo_name", zkclient=self.zk)
+
+        l1.acquire()
+        self.zk.delete(l1.lock_path)
+        l2.acquire()
+
+        l1.release()
+
+        data, _zstat = self.zk.get(l2.lock_path)
+        self.assertEqual(l2.identifier, k3utfjson.load(data))
+
     def test_node_change_after_released(self):
         sess = {"acquired": True}
 
@@ -532,6 +546,7 @@ class TestZKLockOwnedClient(unittest.TestCase):
         with mock.patch.multiple(
             KazooClient,
             start=mock.DEFAULT,
+            get=mock.DEFAULT,
             delete=mock.DEFAULT,
             stop=mock.DEFAULT,
             close=mock.DEFAULT,
@@ -539,6 +554,8 @@ class TestZKLockOwnedClient(unittest.TestCase):
             m["delete"].side_effect = ConnectionLoss()
             lock = k3zkutil.ZKLock("foo_name", zkconf={"hosts": "127.0.0.1:21811"}, on_lost=lambda: True)
             lock.lock_holder = (lock.identifier, 0)
+            data = k3utfjson.dump(lock.identifier).encode("utf-8")
+            m["get"].return_value = (data, mock.Mock(version=0))
             self.assertRaises(ConnectionLoss, lock.release)
 
         self.assertEqual([mock.call()], m["stop"].mock_calls)

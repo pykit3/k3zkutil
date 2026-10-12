@@ -221,6 +221,9 @@ class ZKLock:
         Release the lock if it has been locked.
         Otherwise return silently.
 
+        It deletes the lock node only if the node holds the identifier of this lock.
+        So after this lock lost its node, it leaves the node that another lock created.
+
         If this lock initiated a connection by itself, it will be closed.
 
         :return: Nothing
@@ -232,7 +235,12 @@ class ZKLock:
                     self.zkclient.remove_listener(self.on_connection_change)
 
                     try:
-                        self.zkclient.delete(self.lock_path)
+                        data, zstat = self.zkclient.get(self.lock_path)
+                        if self._holds_my_identifier(data):
+                            # The version fails the delete if the node changes after get().
+                            self.zkclient.delete(self.lock_path, version=zstat.version)
+                        else:
+                            logger.info(f"lock node holds {data!r}, not this lock, leave it: {self!s}")
                     except NoNodeError as e:
                         logger.info(repr(e) + " while delete lock: " + str(self))
 
@@ -301,6 +309,19 @@ class ZKLock:
 
     def cmp_identifier(self, ia, ib):
         return ia["id"] == ib["id"]
+
+    def _holds_my_identifier(self, data):
+        # Other code may set any data on the lock node, such as b"xxx" that is not JSON.
+        try:
+            holder = k3utfjson.load(data)
+        except ValueError:
+            return False
+
+        is_identifier = isinstance(holder, dict) and "id" in holder
+        if not is_identifier:
+            return False
+
+        return self.cmp_identifier(holder, self.identifier)
 
     def _acquire_by_get(self):
         logger.debug(f"to get: {self!s}")
