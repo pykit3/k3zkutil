@@ -60,6 +60,10 @@ class TestZKLock(unittest.TestCase):
         k3utdocker.pull_image(zk_test_tag)
 
     def setUp(self):
+        # A cleanup also runs when setUp() raises later, so the global conf never leaks into other tests.
+        self.addCleanup(setattr, conf, "zk_acl", conf.zk_acl)
+        self.addCleanup(setattr, conf, "zk_auth", conf.zk_auth)
+
         conf.zk_acl = zk_test_acl
         conf.zk_auth = zk_test_auth
 
@@ -525,11 +529,9 @@ class TestZKLockOwnedClient(unittest.TestCase):
         self.assertEqual([mock.call()], m["close"].mock_calls)
 
     def test_release_error_closes_client(self):
-        # add_auth is patched too, because TestZKLock.setUp() leaves conf.zk_auth set.
         with mock.patch.multiple(
             KazooClient,
             start=mock.DEFAULT,
-            add_auth=mock.DEFAULT,
             delete=mock.DEFAULT,
             stop=mock.DEFAULT,
             close=mock.DEFAULT,
