@@ -225,23 +225,24 @@ class ZKLock:
 
         :return: Nothing
         """
-        with self.mutex:
-            if self.is_locked():
-                # remove listener to avoid useless event triggering
-                self.zkclient.remove_listener(self.on_connection_change)
+        try:
+            with self.mutex:
+                if self.is_locked():
+                    # remove listener to avoid useless event triggering
+                    self.zkclient.remove_listener(self.on_connection_change)
 
-                try:
-                    self.zkclient.delete(self.lock_path)
-                except NoNodeError as e:
-                    logger.info(repr(e) + " while delete lock: " + str(self))
+                    try:
+                        self.zkclient.delete(self.lock_path)
+                    except NoNodeError as e:
+                        logger.info(repr(e) + " while delete lock: " + str(self))
 
-                self.lock_holder = None
+                    self.lock_holder = None
 
-                logger.info(f"RELEASED: {self!s}")
-            else:
-                logger.info("not acquired, do not need to release")
-
-        self.close()
+                    logger.info(f"RELEASED: {self!s}")
+                else:
+                    logger.info("not acquired, do not need to release")
+        finally:
+            self.close()
 
     def close(self):
         self.zkclient.remove_listener(self.on_connection_change)

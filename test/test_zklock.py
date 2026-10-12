@@ -8,7 +8,7 @@ import k3utdocker
 import k3utfjson
 from k3confloader import conf
 from kazoo.client import KazooClient
-from kazoo.exceptions import AuthFailedError, ConnectionClosedError
+from kazoo.exceptions import AuthFailedError, ConnectionClosedError, ConnectionLoss
 
 import k3zkutil
 from k3zkutil import zklock
@@ -520,6 +520,24 @@ class TestZKLockOwnedClient(unittest.TestCase):
             m["add_auth"].side_effect = AuthFailedError()
             zkconf = {"hosts": "127.0.0.1:21811", "auth": ("digest", "a", "b")}
             self.assertRaises(AuthFailedError, k3zkutil.ZKLock, "foo_name", zkconf=zkconf, on_lost=lambda: True)
+
+        self.assertEqual([mock.call()], m["stop"].mock_calls)
+        self.assertEqual([mock.call()], m["close"].mock_calls)
+
+    def test_release_error_closes_client(self):
+        # add_auth is patched too, because TestZKLock.setUp() leaves conf.zk_auth set.
+        with mock.patch.multiple(
+            KazooClient,
+            start=mock.DEFAULT,
+            add_auth=mock.DEFAULT,
+            delete=mock.DEFAULT,
+            stop=mock.DEFAULT,
+            close=mock.DEFAULT,
+        ) as m:
+            m["delete"].side_effect = ConnectionLoss()
+            lock = k3zkutil.ZKLock("foo_name", zkconf={"hosts": "127.0.0.1:21811"}, on_lost=lambda: True)
+            lock.lock_holder = (lock.identifier, 0)
+            self.assertRaises(ConnectionLoss, lock.release)
 
         self.assertEqual([mock.call()], m["stop"].mock_calls)
         self.assertEqual([mock.call()], m["close"].mock_calls)
