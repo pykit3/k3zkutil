@@ -12,7 +12,7 @@ from kazoo.exceptions import AuthFailedError, ConnectionClosedError, ConnectionL
 
 import k3zkutil
 from k3zkutil import zklock
-from k3zkutil.test.helper import wait_for_zk
+from k3zkutil.test.helper import skip_without_docker, wait_for_zk
 
 dd = k3ut.dd
 
@@ -57,6 +57,7 @@ zk_test_acl = (("xp", "123", "cdrw"),)
 class TestZKLock(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        skip_without_docker()
         k3utdocker.pull_image(zk_test_tag)
 
     def setUp(self):

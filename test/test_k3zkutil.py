@@ -13,7 +13,7 @@ from kazoo.client import KazooClient
 from kazoo.exceptions import ConnectionClosedError, NoNodeError
 
 import k3zkutil
-from k3zkutil.test.helper import wait_for_zk
+from k3zkutil.test.helper import skip_without_docker, wait_for_zk
 
 dd = k3ut.dd
 
@@ -246,6 +246,7 @@ class Testk3zkutil(unittest.TestCase):
 class TestZKinit(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        skip_without_docker()
         k3utdocker.pull_image(zk_tag)
 
     def setUp(self):
@@ -471,6 +472,7 @@ class TestZKinit(unittest.TestCase):
 class TestWait(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        skip_without_docker()
         k3utdocker.pull_image(zk_tag)
 
     def setUp(self):

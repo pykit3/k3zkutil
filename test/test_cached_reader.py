@@ -9,7 +9,7 @@ from kazoo.exceptions import NoNodeError
 
 import k3zkutil
 from k3zkutil import zkconf
-from k3zkutil.test.helper import wait_for_zk
+from k3zkutil.test.helper import skip_without_docker, wait_for_zk
 
 zk_test_name = "zk_test"
 zk_test_tag = "zookeeper:3.9"
@@ -18,6 +18,7 @@ zk_test_tag = "zookeeper:3.9"
 class TestCachedReader(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        skip_without_docker()
         k3utdocker.pull_image(zk_test_tag)
 
     def setUp(self):

@@ -5,7 +5,7 @@ import k3ut
 import k3utdocker
 
 import k3zkutil
-from k3zkutil.test.helper import wait_for_zk
+from k3zkutil.test.helper import skip_without_docker, wait_for_zk
 
 dd = k3ut.dd
 
@@ -16,6 +16,7 @@ zk_name = "zk_test"
 class TestAcid(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        skip_without_docker()
         k3utdocker.pull_image(zk_tag)
 
     def setUp(self):
